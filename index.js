@@ -12,7 +12,7 @@ const app = express();
 app.use(bodyParser.json());
 
 app.use('/auth', authRouter);
-app.use('/ecommerce', eCommerceRouter);
+app.use(eCommerceRouter);
 
 app.use((error, req, res, next) => {
     const statusCode = error.statusCode || 500;

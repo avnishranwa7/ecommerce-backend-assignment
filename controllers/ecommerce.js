@@ -39,7 +39,7 @@ export const getProductList = async (req, res, next) => {
         }
 
         const products = await Product.find({ category: categoryId })
-            .select('title price description availability -_id');
+            .select('title price description availability');
 
         res.status(201).json({
             category: category.name,
@@ -150,10 +150,10 @@ export const placeOrder = async (req, res, next) => {
 
 export const getOrderHistory = async (req, res, next) => {
     const orders = await Order.find({ 'user.userId': req.userId })
-        .select('-_id -__v -user -products._id');
+        .select('-user -products._id');
 
     const result = orders.map(order => {
-        return { items: order.products.length, amount: order.amount };
+        return { _id: order._id, items: order.products.length, amount: order.amount };
     })
 
     res.status(201).json({
