@@ -1,5 +1,7 @@
 import Category from '../models/category.js';
 import Product from '../models/product.js';
+import Order from '../models/order.js';
+import User from '../models/user.js';
 
 const CATEGORIES_PER_PAGE = 5;
 
@@ -57,9 +59,9 @@ export const getProductDetail = async (req, res, next) => {
 
     try {
         const product = await Product.findById(productId)
-            .populate({path: 'createdBy', select: 'email name -_id'})
-            .populate({path: 'category', select: 'name -_id'});
-        if(!product){
+            .populate({ path: 'createdBy', select: 'email name -_id' })
+            .populate({ path: 'category', select: 'name -_id' });
+        if (!product) {
             const error = new Error('No such product id.')
             error.statusCode = 401;
             throw error;
@@ -69,8 +71,8 @@ export const getProductDetail = async (req, res, next) => {
             product
         });
     }
-    catch(err){
-        if(!err.statusCode){
+    catch (err) {
+        if (!err.statusCode) {
             err.statusCode = 500;
         }
         next(err);
@@ -115,5 +117,56 @@ export const createProduct = async (req, res, next) => {
         }
         next(err);
     }
+}
 
+export const placeOrder = async (req, res, next) => {
+    const user = await User.findById(req.userId)
+        .populate({ path: 'cart.items.product', select: '-availability -category -createdBy -_id -__v' });
+
+    let amount = 0;
+    const products = user.cart.items.map(item => {
+        amount += item.product.price * item.quantity;
+        return { product: item.product._doc, quantity: item.quantity };
+    });
+    console.log('yoo');
+    console.log(products);
+
+    const order = new Order({
+        products,
+        amount,
+        user: {
+            email: user.email,
+            userId: req.userId
+        }
+    });
+
+    await order.save();
+    await user.clearCart();
+    res.status(201).json({
+        message: 'Order placed.',
+        order
+    });
+}
+
+export const getOrderHistory = async (req, res, next) => {
+    const orders = await Order.find({ 'user.userId': req.userId })
+        .select('-_id -__v -user -products._id');
+
+    const result = orders.map(order => {
+        return { items: order.products.length, amount: order.amount };
+    })
+
+    res.status(201).json({
+        orders: result
+    });
+}
+
+export const getOrder = async (req, res, next) => {
+    const orderId = req.params.orderId;
+    const orders = await Order.findById({ 'user.userId': req.userId, '_id': orderId })
+        .select('-_id -__v -user -products._id');
+
+    res.status(201).json({
+        orders
+    });
 }
